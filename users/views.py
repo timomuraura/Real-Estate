@@ -102,3 +102,246 @@ def property_type_delete(request, pk):
         property_type.delete()
         return JsonResponse({'message': 'Property type deleted successfully'}, status=200)
 
+#Create a view
+@csrf_exempt
+def view_create(request):
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        view_name = data.get('view_name')
+
+        if not view_name:
+            return JsonResponse({'error': 'View name is required'}, status=400)
+
+        view = View.objects.create(view_name=view_name)
+        return JsonResponse({'id': view.id, 'view_name': view.view_name}, status=201)
+    return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+#Get the views
+@csrf_exempt
+def view_list(request):
+    views= View.objects.all().values('id', 'view_name')
+    return JsonResponse(list(views), safe=False)
+
+#Edit the views
+@csrf_exempt
+def view_update(request, pk):
+    view = get_object_or_404(View, pk=pk)
+
+    if request.method == 'PATCH':
+        data = json.loads(request.body)
+        view_name = data.get('view_name')
+
+        if not view_name:
+            return JsonResponse({'error': 'View name is required'}, status=400)
+
+        view.view_name = view_name
+        view.save()
+        return JsonResponse({'id': view.id, 'view_name': view.view_name}, status=200)
+
+    return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+#Delete the views
+@csrf_exempt
+def view_delete(request, pk):
+    view = get_object_or_404(View, pk=pk)
+
+    if request.method == 'DELETE':
+        view.delete()
+        return JsonResponse({'message': 'View deleted successfully'}, status=200)
+
+    return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+#Create feature
+@csrf_exempt
+def feature_create(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            feature_name = data.get('features_name')
+        except json.JSONDecodeError:
+            feature_name = request.POST.get('features_name')
+
+        if not feature_name:
+            return JsonResponse({'error': 'Feature name is required'}, status=400)
+
+        feature = Features.objects.create(features_name=feature_name)
+        return JsonResponse({'id': feature.id, 'features_name': feature.features_name}, status=201)
+
+    return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+#Get feature
+@csrf_exempt
+def feature_list(request):
+    views= Features.objects.all().values('id', 'features_name')
+    return JsonResponse(list(views), safe=False)
+
+#Edit Feature
+@csrf_exempt
+def feature_update(request, pk):
+    feature = get_object_or_404(Features, pk=pk)
+
+    if request.method == 'PATCH':
+        try:
+            data = json.loads(request.body)
+            feature_name = data.get('features_name')
+        except json.JSONDecodeError:
+            feature_name = request.POST.get('features_name')
+
+        if not feature_name:
+            return JsonResponse({'error': 'Feature name is required'}, status=400)
+
+        feature.features_name = feature_name
+        feature.save()
+        return JsonResponse({'id': feature.id, 'features_name': feature.features_name}, status=200)
+
+    return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+#Delete feature
+@csrf_exempt
+def feature_delete(request, pk):
+    feature = get_object_or_404(Features, pk=pk)
+    if request.method == 'DELETE':
+        feature.delete()
+        return JsonResponse({'message': 'Feature deleted successfully'}, status=200)
+
+    return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+#Create new property
+@csrf_exempt
+def property_create(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            required_fields = [
+                'type_of_purchase', 
+                'property_type_id', 
+                'number_of_beds', 
+                'price', 
+                'area',
+                'view_id',
+                'reference_number',
+                'features_id'
+            ]
+            
+            # Check for required fields
+            if not all(field in data for field in required_fields):
+                return JsonResponse({
+                    'error': f'Missing required fields. Required fields are: {", ".join(required_fields)}'
+                }, status=400)
+            
+            # Validate type_of_purchase
+            if data['type_of_purchase'] not in ['sale', 'rent']:
+                return JsonResponse({
+                    'error': 'type_of_purchase must be either "sale" or "rent"'
+                }, status=400)
+
+            # Create new property
+            property = Property.objects.create(
+                type_of_purchase=data['type_of_purchase'],
+                property_type_id=data['property_type_id'],
+                number_of_beds=data['number_of_beds'],
+                price=data['price'],
+                area=data['area'],
+                view_id=data['view_id'],
+                reference_number=data['reference_number'],
+                features_id=data['features_id']
+            )
+            
+            return JsonResponse({
+                'id': property.id,
+                'type_of_purchase': property.type_of_purchase,
+                'property_type': property.property_type.property_type_name,
+                'number_of_beds': property.number_of_beds,
+                'price': str(property.price),
+                'area': property.area,
+                'view': str(property.view),
+                'reference_number': property.reference_number,
+                'features': str(property.features)
+            }, status=201)
+            
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON'}, status=400)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
+        
+#Get all properties
+@csrf_exempt
+def property_list(request):
+    if request.method == 'GET':
+        properties = Property.objects.all()
+        data = [{
+            'id': prop.id,
+            'type_of_purchase': prop.type_of_purchase,
+            'property_type': prop.property_type.property_type_name,
+            'number_of_beds': prop.number_of_beds,
+            'price': str(prop.price),
+            'area': prop.area,
+            'view': str(prop.view),
+            'reference_number': prop.reference_number,
+            'features': str(prop.features)
+        } for prop in properties]
+        return JsonResponse(data, safe=False)
+
+#Update a property
+@csrf_exempt
+def property_update(request, pk):
+    property = get_object_or_404(Property, pk=pk)
+    
+    if request.method in ['PUT', 'PATCH']:
+        try:
+            data = json.loads(request.body)
+            
+            # Validate type_of_purchase if provided
+            if 'type_of_purchase' in data and data['type_of_purchase'] not in ['sale', 'rent']:
+                return JsonResponse({
+                    'error': 'type_of_purchase must be either "sale" or "rent"'
+                }, status=400)
+
+            # Update fields if they exist in the request
+            updatable_fields = [
+                'type_of_purchase',
+                'property_type_id',
+                'number_of_beds',
+                'price',
+                'area',
+                'view_id',
+                'reference_number',
+                'features_id'
+            ]
+            
+            for field in updatable_fields:
+                if field in data:
+                    setattr(property, field, data[field])
+            
+            property.save()
+            
+            return JsonResponse({
+                'id': property.id,
+                'type_of_purchase': property.type_of_purchase,
+                'property_type': property.property_type.property_type_name,
+                'number_of_beds': property.number_of_beds,
+                'price': str(property.price),
+                'area': property.area,
+                'view': str(property.view),
+                'reference_number': property.reference_number,
+                'features': str(property.features)
+            })
+            
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON'}, status=400)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
+
+#Delete a property
+@csrf_exempt
+def property_delete(request, pk):
+    property = get_object_or_404(Property, pk=pk)
+    
+    if request.method == 'DELETE':
+        property.delete()
+        return JsonResponse({'message': 'Property deleted successfully'})
+    property = get_object_or_404(Property, pk=pk)
+    
+    if request.method == 'DELETE':
+        property.delete()
+        return JsonResponse({'message': 'Property deleted successfully'})
